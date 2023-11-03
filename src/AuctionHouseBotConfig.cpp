@@ -20,6 +20,8 @@
 #include "ItemTemplate.h"
 #include <numeric>
 
+#include "Log.h"
+
 AHBConfig::AHBConfig(uint32 ahid)
 {
     _auctionHouseID = ahid;
@@ -61,27 +63,18 @@ void AHBConfig::SetPercentages(std::array<uint32, AHB_MAX_QUALITY>& percentages)
     }
     else if (totalPercent != 100)
     {
-        _itemsPercent[ITEM_QUALITY_POOR]            = 0;
-        _itemsPercent[ITEM_QUALITY_NORMAL]          = 27;
-        _itemsPercent[ITEM_QUALITY_UNCOMMON]        = 12;
-        _itemsPercent[ITEM_QUALITY_RARE]            = 10;
-        _itemsPercent[ITEM_QUALITY_EPIC]            = 1;
-        _itemsPercent[ITEM_QUALITY_LEGENDARY]       = 0;
-        _itemsPercent[ITEM_QUALITY_ARTIFACT]        = 0;
+        // re-normalize all percentages
+        const float fixMultiplier = 100.f / static_cast<float>(totalPercent);
 
-        _itemsPercent[AHB_ITEM_QUALITY_POOR]        = 0;
-        _itemsPercent[AHB_ITEM_QUALITY_NORMAL]      = 10;
-        _itemsPercent[AHB_ITEM_QUALITY_UNCOMMON]    = 30;
-        _itemsPercent[AHB_ITEM_QUALITY_RARE]        = 8;
-        _itemsPercent[AHB_ITEM_QUALITY_EPIC]        = 2;
-        _itemsPercent[AHB_ITEM_QUALITY_LEGENDARY]   = 0;
-        _itemsPercent[AHB_ITEM_QUALITY_ARTIFACT]    = 0;
+        for (auto& it : percentages)
+            it *= fixMultiplier;
+
+        LOG_WARN("module.ahbot", "AHConfig: Percentages don't add up to 100 (was {}), they have been auto-normalized.", totalPercent);
     }
 
-    for (size_t i = 0; i < percentages.size(); i++)
-        _itemsPercent[i] = percentages[i];
+    std::copy_n(percentages.begin(), AHB_MAX_QUALITY, _itemsPercent.begin());
 
-    CalculatePercents();
+    CalculateMaxCounts();
 }
 
 uint32 AHBConfig::GetPercentages(uint32 color)
@@ -97,7 +90,7 @@ void AHBConfig::SetMinPrice(uint32 color, uint32 value)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return;
 
-    _minPrice[color] = value;
+    _qualityInfo[color]._minPrice = value;
 }
 
 uint32 AHBConfig::GetMinPrice(uint32 color)
@@ -107,8 +100,8 @@ uint32 AHBConfig::GetMinPrice(uint32 color)
 
     auto _GetMinPrice = [this, color](uint32 returnValue)
     {
-        uint32 minPrice = _minPrice[color];
-        uint32 maxPrice = _maxPrice[color];
+        const uint32 minPrice = _qualityInfo[color]._minPrice;
+        const uint32 maxPrice = _qualityInfo[color]._maxPrice;
 
         if (!minPrice)
             return returnValue;
@@ -137,7 +130,7 @@ void AHBConfig::SetMaxPrice(uint32 color, uint32 value)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return;
 
-    _maxPrice[color] = value;
+    _qualityInfo[color]._maxPrice = value;
 }
 
 uint32 AHBConfig::GetMaxPrice(uint32 color)
@@ -145,7 +138,7 @@ uint32 AHBConfig::GetMaxPrice(uint32 color)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return 0;
 
-    uint32 maxPrice = _maxPrice[color];
+    uint32 maxPrice = _qualityInfo[color]._maxPrice;
 
     switch (color)
     {
@@ -166,7 +159,7 @@ void AHBConfig::SetMinBidPrice(uint32 color, uint32 value)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return;
 
-    _minBidPrice[color] = value;
+    _qualityInfo[color]._minBidPrice = value;
 }
 
 uint32 AHBConfig::GetMinBidPrice(uint32 color)
@@ -174,7 +167,7 @@ uint32 AHBConfig::GetMinBidPrice(uint32 color)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return 0;
 
-    uint32 minBidPrice = _minBidPrice[color];
+    uint32 minBidPrice = _qualityInfo[color]._minBidPrice;
     return minBidPrice > 100 ? 100 : minBidPrice;
 }
 
@@ -183,7 +176,7 @@ void AHBConfig::SetMaxBidPrice(uint32 color, uint32 value)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return;
 
-    _maxBidPrice[color] = value;
+    _qualityInfo[color]._maxBidPrice = value;
 }
 
 uint32 AHBConfig::GetMaxBidPrice(uint32 color)
@@ -191,7 +184,7 @@ uint32 AHBConfig::GetMaxBidPrice(uint32 color)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return 0;
 
-    uint32 maxBidPrice = _maxBidPrice[color];
+    uint32 maxBidPrice = _qualityInfo[color]._maxBidPrice;
     return maxBidPrice > 100 ? 100 : maxBidPrice;
 }
 
@@ -200,7 +193,7 @@ void AHBConfig::SetMaxStack(uint32 color, uint32 value)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return;
 
-    _maxStack[color] = value;
+    _qualityInfo[color]._maxStack = value;
 }
 
 uint32 AHBConfig::GetMaxStack(uint32 color)
@@ -208,7 +201,7 @@ uint32 AHBConfig::GetMaxStack(uint32 color)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return 0;
 
-    return _maxStack[color];
+    return _qualityInfo[color]._maxStack;
 }
 
 void AHBConfig::SetBuyerPrice(uint32 color, uint32 value)
@@ -216,7 +209,7 @@ void AHBConfig::SetBuyerPrice(uint32 color, uint32 value)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return;
 
-    _buyerPrice[color] = value;
+    _qualityInfo[color]._buyerPrice = value;
 }
 
 uint32 AHBConfig::GetBuyerPrice(uint32 color)
@@ -224,37 +217,37 @@ uint32 AHBConfig::GetBuyerPrice(uint32 color)
     if (color >= AHB_DEFAULT_QUALITY_SIZE)
         return 0;
 
-    return _buyerPrice[color];
+    return _qualityInfo[color]._buyerPrice;
 }
 
-void AHBConfig::CalculatePercents()
+void AHBConfig::CalculateMaxCounts()
 {
     for (size_t i = 0; i < AHB_MAX_QUALITY; i++)
     {
         double itemPercent = _itemsPercent[i];
-        _itemsPercentages[i] = uint32(itemPercent / 100 * _maxItems);
+        _itemMaxCounts[i] = uint32(itemPercent / 100 * _maxItems);
     }
 
-    uint32 totalPercent = std::accumulate(_itemsPercentages.begin(), _itemsPercentages.end(), 0);
+    uint32 totalPercent = std::accumulate(_itemMaxCounts.begin(), _itemMaxCounts.end(), 0);
     int32 diff = (_maxItems - totalPercent);
 
     if (diff < 0)
     {
-        if (_itemsPercentages[AHB_ITEM_QUALITY_NORMAL] - diff > 0)
-            _itemsPercentages[AHB_ITEM_QUALITY_NORMAL] -= diff;
-        else if (_itemsPercentages[AHB_ITEM_QUALITY_UNCOMMON] - diff > 0)
-            _itemsPercentages[AHB_ITEM_QUALITY_UNCOMMON] -= diff;
+        if (_itemMaxCounts[AHB_ITEM_QUALITY_NORMAL] - diff > 0)
+            _itemMaxCounts[AHB_ITEM_QUALITY_NORMAL] -= diff;
+        else if (_itemMaxCounts[AHB_ITEM_QUALITY_UNCOMMON] - diff > 0)
+            _itemMaxCounts[AHB_ITEM_QUALITY_UNCOMMON] -= diff;
     }
     else if (diff < 0)
-        _itemsPercentages[AHB_ITEM_QUALITY_NORMAL] += diff;
+        _itemMaxCounts[AHB_ITEM_QUALITY_NORMAL] += diff;
 }
 
-uint32 AHBConfig::GetPercents(uint32 color)
+uint32 AHBConfig::GetMaxCount(uint32 color)
 {
     if (color >= AHB_MAX_QUALITY)
         return 0;
 
-    return _itemsPercentages[color];
+    return _itemMaxCounts[color];
 }
 
 void AHBConfig::DecreaseItemCounts(uint32 Class, uint32 Quality)

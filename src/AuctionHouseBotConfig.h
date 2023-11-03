@@ -15,13 +15,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef AUCTION_HOUSE_BOT_CONFIG_H
+#define AUCTION_HOUSE_BOT_CONFIG_H
+
 #include "Define.h"
 #include "Duration.h"
+#include "SharedDefines.h"
 #include <array>
 
 enum AHItemQualities
 {
-    AHB_ITEM_QUALITY_POOR = 7,      // GREY
+    AHB_ITEM_QUALITY_POOR = ITEM_QUALITY_HEIRLOOM,      // GREY
     AHB_ITEM_QUALITY_NORMAL,        // WHITE
     AHB_ITEM_QUALITY_UNCOMMON,      // GREEN
     AHB_ITEM_QUALITY_RARE,          // BLUE
@@ -30,7 +34,7 @@ enum AHItemQualities
     AHB_ITEM_QUALITY_ARTIFACT,      // LIGHT YELLOW
 };
 
-constexpr uint32 AHB_MAX_DEFAULT_QUALITY = 6;
+constexpr uint32 AHB_MAX_DEFAULT_QUALITY = ITEM_QUALITY_ARTIFACT;
 constexpr uint32 AHB_DEFAULT_QUALITY_SIZE = AHB_MAX_DEFAULT_QUALITY + 1;
 constexpr uint32 AHB_MAX_QUALITY = AHB_ITEM_QUALITY_ARTIFACT + 1;
 
@@ -62,7 +66,7 @@ public:
     inline void SetMaxItems(uint32 value)
     {
         _maxItems = value;
-        // CalculatePercents() needs to be called, but only if
+        // CalculateMaxCounts() needs to be called, but only if
         // SetPercentages() has been called at least once already.
     }
 
@@ -109,13 +113,13 @@ public:
         return _buyerBiddingInterval;
     }
 
-    void CalculatePercents();
+    void CalculateMaxCounts();
 
-    uint32 GetPercents(uint32 color);
+    uint32 GetMaxCount(uint32 color);
 
-    inline std::array<uint32, AHB_MAX_QUALITY> const* GetPercents()
+    inline std::array<uint32, AHB_MAX_QUALITY> const* GetMaxCounts()
     {
-        return &_itemsPercentages;
+        return &_itemMaxCounts;
     }
 
     void DecreaseItemCounts(uint32 Class, uint32 Quality);
@@ -158,12 +162,21 @@ private:
     uint32 _buyerBidsPerInterval{ 0 };
 
     std::array<uint32, AHB_MAX_QUALITY> _itemsPercent{};
-    std::array<uint32, AHB_MAX_QUALITY> _itemsPercentages{};
-    std::array<uint32, AHB_DEFAULT_QUALITY_SIZE> _buyerPrice{};
-    std::array<uint32, AHB_DEFAULT_QUALITY_SIZE> _maxStack{};
-    std::array<uint32, AHB_DEFAULT_QUALITY_SIZE> _minBidPrice{};
-    std::array<uint32, AHB_DEFAULT_QUALITY_SIZE> _maxBidPrice{};
-    std::array<uint32, AHB_DEFAULT_QUALITY_SIZE> _minPrice{};
-    std::array<uint32, AHB_DEFAULT_QUALITY_SIZE> _maxPrice{};
+    std::array<uint32, AHB_MAX_QUALITY> _itemMaxCounts{};
+
+    struct QualityInfo
+    {
+        uint32_t _buyerPrice {};
+        uint32_t _maxStack {};
+        uint32_t _minBidPrice {};
+        uint32_t _maxBidPrice {};
+        uint32_t _minPrice {};
+        uint32_t _maxPrice {};
+        uint32_t _itemsCount {};
+    };
+
+    std::array<QualityInfo, AHB_DEFAULT_QUALITY_SIZE> _qualityInfo{};
     std::array<uint32, AHB_MAX_QUALITY> _itemsCount{};
 };
+
+#endif // AUCTION_HOUSE_BOT_CONFIG_H

@@ -58,58 +58,6 @@ private:
     ObjectGuid::LowType AHBplayerGUID;
     uint32 ItemsPerCycle;
 
-    bool Vendor_Items{ false };
-    bool Loot_Items{ false };
-    bool Other_Items{ false };
-    bool Vendor_TGs{ false };
-    bool Loot_TGs{ false };
-    bool Other_TGs{ false };
-
-    bool No_Bind{ false };
-    bool Bind_When_Picked_Up{ false };
-    bool Bind_When_Equipped{ false };
-    bool Bind_When_Use{ false };
-    bool Bind_Quest_Item{ false };
-
-    bool DisablePermEnchant{ false };
-    bool DisableConjured{ false };
-    bool DisableGems{ false };
-    bool DisableMoney{ false };
-    bool DisableMoneyLoot{ false };
-    bool DisableLootable{ false };;
-    bool DisableKeys{ false };
-    bool DisableDuration{ false };
-    bool DisableBOP_Or_Quest_NoReqLevel{ false };
-
-    bool DisableWarriorItems{ false };
-    bool DisablePaladinItems{ false };
-    bool DisableHunterItems{ false };
-    bool DisableRogueItems{ false };
-    bool DisablePriestItems{ false };
-    bool DisableDKItems{ false };
-    bool DisableShamanItems{ false };
-    bool DisableMageItems{ false };
-    bool DisableWarlockItems{ false };
-    bool DisableUnusedClassItems{ false };
-    bool DisableDruidItems{ false };
-
-    uint32 DisableItemsBelowLevel{ 0 };
-    uint32 DisableItemsAboveLevel{ 0 };
-    uint32 DisableTGsBelowLevel{ 0 };
-    uint32 DisableTGsAboveLevel{ 0 };
-    uint32 DisableItemsBelowGUID{ 0 };
-    uint32 DisableItemsAboveGUID{ 0 };
-    uint32 DisableTGsBelowGUID{ 0 };
-    uint32 DisableTGsAboveGUID{ 0 };
-    uint32 DisableItemsBelowReqLevel{ 0 };
-    uint32 DisableItemsAboveReqLevel{ 0 };
-    uint32 DisableTGsBelowReqLevel{ 0 };
-    uint32 DisableTGsAboveReqLevel{ 0 };
-    uint32 DisableItemsBelowReqSkillRank{ 0 };
-    uint32 DisableItemsAboveReqSkillRank{ 0 };
-    uint32 DisableTGsBelowReqSkillRank{ 0 };
-    uint32 DisableTGsAboveReqSkillRank{ 0 };
-
     std::unordered_set<uint32> DisableItemStore{};
 
     AHBConfig AllianceConfig;
@@ -119,10 +67,6 @@ private:
     Seconds _lastUpdateAlliance{ 0s };
     Seconds _lastUpdateHorde{ 0s };
     Seconds _lastUpdateNeutral{ 0s };
-
-    std::array<std::vector<uint32>, AHB_MAX_QUALITY> _itemsBin{};
-    std::vector<uint32> npcItems{};
-    std::vector<uint32> lootItems{};
 
     inline uint32 minValue(uint32 a, uint32 b) { return a <= b ? a : b; };
     void AddNewAuctions(Player* AHBplayer, AHBConfig* config);
