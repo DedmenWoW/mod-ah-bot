@@ -151,6 +151,7 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
     auto calculatePrices = [config, this](ItemTemplate const* prototype, uint64 vendorPrice) -> std::pair<uint32, uint32>
         {
             {
+                auto& itemPriceOverride = sAHIndex->GetPriceOverrides();
                 const auto foundOverride = itemPriceOverride.find(prototype->ItemId);
 
                 if (foundOverride != itemPriceOverride.end())
@@ -372,6 +373,7 @@ void AuctionHouseBot::AddNewAuctionBuyerBotBidCallback(std::shared_ptr<Player> p
         uint32 basePrice = BuyMethod ? prototype->SellPrice : prototype->BuyPrice;
 
         {
+            auto& itemPriceOverride = sAHIndex->GetPriceOverrides();
             auto foundOverride = itemPriceOverride.find(prototype->ItemId);
 
             if (foundOverride != itemPriceOverride.end())
@@ -550,6 +552,8 @@ void AuctionHouseBot::Update()
 
 void AuctionHouseBot::Initialize()
 {
+    sAHIndex->Initialize();
+
     if (AHBSeller)
         if (!sAHIndex->InitializeItemsToSell())
             AHBSeller = false;
@@ -573,20 +577,6 @@ void AuctionHouseBot::Initialize()
         {
             LOG_ERROR("module", "AuctionHouseBot: The account/GUID-information set for your AHBot is incorrect (account: {} guid: {})", AHBplayerAccount, AHBplayerGUID);
             return;
-        }
-    }
-
-    // Load price overrides
-    {
-        QueryResult results = WorldDatabase.Query("SELECT item, avgPrice, minPrice FROM mod_auctionhousebot_priceOverride");
-
-        if (results)
-        {
-            do
-            {
-                const Field* fields = results->Fetch();
-                itemPriceOverride.emplace(fields[0].Get<uint32>(), std::pair{ fields[1].Get<uint32>() , fields[2].Get<uint32>() });
-            } while (results->NextRow());
         }
     }
 

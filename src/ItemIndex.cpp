@@ -9,10 +9,21 @@
 #include "ObjectMgr.h"
 #include "SmartEnum.h"
 
-AuctionHouseIndex* AuctionHouseIndex::instance()
+void AuctionHouseIndex::Initialize()
 {
-    static AuctionHouseIndex instance;
-    return &instance;
+    // Load price overrides
+    {
+        QueryResult results = WorldDatabase.Query("SELECT item, avgPrice, minPrice FROM mod_auctionhousebot_priceOverride");
+
+        if (results)
+        {
+            do
+            {
+                const Field* fields = results->Fetch();
+                itemPriceOverride.emplace(fields[0].Get<uint32>(), std::pair{ fields[1].Get<uint32>() , fields[2].Get<uint32>() });
+            } while (results->NextRow());
+        }
+    }
 }
 
 struct ItemFilter
@@ -203,15 +214,24 @@ struct ItemFilter
             return false;
         }
 
-        if (SellMethod)
+        uint32 basePrice = SellMethod ? itemTemplate.BuyPrice : itemTemplate.SellPrice;
+
         {
-            if (!itemTemplate.BuyPrice)
-                return false;
+            auto& itemPriceOverride = sAHIndex->GetPriceOverrides();
+            const auto foundOverride = itemPriceOverride.find(itemTemplate.ItemId);
+
+            if (foundOverride != itemPriceOverride.end())
+            {
+                auto [meanPrice, minPrice] = foundOverride->second;
+                basePrice = meanPrice;
+            }
         }
-        else
+
+        // has no price
+        if (!basePrice)
         {
-            if (!itemTemplate.SellPrice)
-                return false;
+            LOG_DEBUG("module.ahbot.filters", "AuctionHouseBot: Item {} has no price", itemTemplate.ItemId);
+            return false;
         }
 
         if (itemTemplate.Quality > ITEM_QUALITY_ARTIFACT)

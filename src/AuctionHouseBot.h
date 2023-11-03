@@ -58,9 +58,6 @@ private:
     ObjectGuid::LowType AHBplayerGUID;
     uint32 ItemsPerCycle;
 
-    // itemID, avgPrice, minPrice
-    std::unordered_map<uint32, std::pair<uint32, uint32>> itemPriceOverride {};
-
     AHBConfig AllianceConfig;
     AHBConfig HordeConfig;
     AHBConfig NeutralConfig;

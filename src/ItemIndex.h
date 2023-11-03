@@ -33,8 +33,13 @@ public:
     AuctionHouseIndex() = default;
     ~AuctionHouseIndex() = default;
 
-    static AuctionHouseIndex* instance();
+    static AuctionHouseIndex* instance()
+    {
+        static AuctionHouseIndex instance;
+        return &instance;
+    }
 
+    void Initialize();
     bool InitializeItemsToSell();
 
     const std::vector<uint32>& GetItemBin(uint32 quality) const
@@ -42,10 +47,19 @@ public:
         return _itemsBin[quality];
     }
 
+    const  std::unordered_map<uint32, std::pair<uint32, uint32>>& GetPriceOverrides() const
+    {
+        return itemPriceOverride;
+    }
+
 private:
 
 
     std::array<std::vector<uint32>, AHB_MAX_QUALITY> _itemsBin{};
+
+
+    // itemID, avgPrice, minPrice
+    std::unordered_map<uint32, std::pair<uint32, uint32>> itemPriceOverride{};
 
 };
 
