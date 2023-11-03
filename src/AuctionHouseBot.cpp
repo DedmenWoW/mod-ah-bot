@@ -133,6 +133,11 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
 
     auto calculateStackSize = [config](ItemTemplate const* prototype)
         {
+            // Some items only make sense in specific size
+            if (prototype->Class == ITEM_CLASS_GLYPH)
+                return 1u; // Glyphs only sold in 1 stacks
+
+
             uint32 maxStackSize = std::max(1u, prototype->GetMaxStackSize());
             const uint32 maxStackConfig = config->GetMaxStack(prototype->Quality);
 
