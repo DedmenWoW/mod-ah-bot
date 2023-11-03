@@ -49,6 +49,8 @@ AuctionHouseBot::AuctionHouseBot()
     return &instance;
 }
 
+std::mt19937 rng{ std::random_device{}() };
+
 void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
 {
     if (!AHBSeller)
@@ -104,7 +106,7 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
     std::array<uint32, AHB_MAX_QUALITY> maxCounts = *config->GetMaxCounts();
     std::array<uint32, AHB_MAX_QUALITY> itemsCount = *config->GetItemCounts();
 
-    LOG_DEBUG("module.ahbot", "AHSeller: {} items", itemsToCreate);
+    LOG_DEBUG("module.ahbot", "AHSeller: creating {} items", itemsToCreate);
 
 
     // Check how many items we are missing in every quality level (plus the separate trade goods levels)
@@ -113,9 +115,6 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
     for (int i = 0; i < AHB_MAX_QUALITY; ++i)
         if (itemsCount[i] < maxCounts[i])
             itemCountToCreate[i] = maxCounts[i] - itemsCount[i];
-
-    //#TODO global rng
-    std::mt19937 rng{ std::random_device{}() };
 
     // Every iteration we will select a quality to add items for
     // That means in the first cycles, the AH will not be balanced (eg full of only blue items) but with the next cycles it will balance out
@@ -132,7 +131,7 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
     // We can only create as many items as are available
     itemsToCreate = std::min(itemsToCreate, std::accumulate(itemCountToCreate.begin(), itemCountToCreate.end(), 0u));
 
-    auto calculateStackSize = [config, &rng](ItemTemplate const* prototype)
+    auto calculateStackSize = [config](ItemTemplate const* prototype)
         {
             uint32 maxStackSize = std::max(1u, prototype->GetMaxStackSize());
             const uint32 maxStackConfig = config->GetMaxStack(prototype->Quality);
@@ -144,12 +143,23 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
             return stackSize(rng);
         };
 
-    auto calculatePrices = [config, &rng](ItemTemplate const* prototype, uint64 buyoutPrice) -> std::pair<uint32, uint32>
+    auto calculatePrices = [config, this](ItemTemplate const* prototype, uint64 vendorPrice) -> std::pair<uint32, uint32>
         {
+            {
+                const auto foundOverride = itemPriceOverride.find(prototype->ItemId);
+
+                if (foundOverride != itemPriceOverride.end())
+                {
+                    auto [meanPrice, minPrice] = foundOverride->second;
+                    std::normal_distribution<float> x(meanPrice, std::max(1u, meanPrice - minPrice));
+                    vendorPrice = x(rng);
+                }
+            }
+
             std::uniform_int_distribution<uint32> buyPriceMultiplier(config->GetMinPrice(prototype->Quality), config->GetMaxPrice(prototype->Quality));
             std::uniform_int_distribution<uint32> bidPriceMultiplier(config->GetMinBidPrice(prototype->Quality), config->GetMaxBidPrice(prototype->Quality));
             //#TODO float?
-            buyoutPrice *= buyPriceMultiplier(rng);
+            uint64 buyoutPrice = vendorPrice * buyPriceMultiplier(rng);
             buyoutPrice /= 100;
             uint64 bidPrice = buyoutPrice * bidPriceMultiplier(rng);
             bidPrice /= 100;
@@ -278,7 +288,8 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
             CharacterDatabase.CommitTransaction(trans);
         }
 
-        itemsCount[quality] -= itemBatch.size();
+        itemCountToCreate[quality] -= itemBatch.size();
+        itemsCount[quality] += itemBatch.size();
         itemsToCreate -= itemBatch.size();
     }
 }
@@ -294,7 +305,10 @@ void AuctionHouseBot::AddNewAuctionBuyerBotBid(std::shared_ptr<Player> player, s
     auto sharedConfig = std::make_shared<AHBConfig>(*config);
 
     _queryProcessor.AddCallback(CharacterDatabase.AsyncQuery(Acore::StringFormatFmt("SELECT id FROM auctionhouse WHERE itemowner<>{} AND buyguid<>{}", AHBplayerGUID, AHBplayerGUID)).
-        WithCallback(std::bind(&AuctionHouseBot::AddNewAuctionBuyerBotBidCallback, this, player, session, sharedConfig, std::placeholders::_1)));
+        WithCallback([this, player, session, sharedConfig](QueryResult result)
+        {
+            AddNewAuctionBuyerBotBidCallback(player, session, sharedConfig, std::move(result));
+        }));
 }
 
 void AuctionHouseBot::AddNewAuctionBuyerBotBidCallback(std::shared_ptr<Player> player, std::shared_ptr<WorldSession> session, std::shared_ptr<AHBConfig> config, QueryResult result)
@@ -314,30 +328,20 @@ void AuctionHouseBot::AddNewAuctionBuyerBotBidCallback(std::shared_ptr<Player> p
 
     //#TODO std::sample
 
-    for (uint32 count = 1; count <= config->GetBidsPerInterval(); ++count)
+    std::vector<uint32> bidTaskList;
+
+    std::sample(possibleBids.begin(), possibleBids.end(), std::back_inserter(bidTaskList), config->GetBidsPerInterval(), rng);
+
+    for (const auto randomID : bidTaskList)
     {
-        // Do we have anything to bid? If not, stop here.
-        if (possibleBids.empty())
-        {
-            //if (debug_Out) sLog->outError( "AHBuyer: I have no items to bid on.");
-            count = config->GetBidsPerInterval();
-            continue;
-        }
-
-        // Choose random auction from possible auctions
-        uint32 randomID = Acore::Containers::SelectRandomContainerElement(possibleBids);
-
         // from auctionhousehandler.cpp, creates auction pointer & player pointer
         AuctionEntry* auction = auctionHouse->GetAuction(randomID);
-
-        // Erase the auction from the vector to prevent bidding on item in next iteration.
-        std::erase(possibleBids, randomID);
 
         if (!auction)
             continue;
 
         // get exact item information
-        Item* pItem = sAuctionMgr->GetAItem(auction->item_guid);
+        const Item* pItem = sAuctionMgr->GetAItem(auction->item_guid);
         if (!pItem)
         {
             LOG_DEBUG("module.ahbot", "AHBuyer: Item {} doesn't exist, perhaps bought already?", auction->item_guid.ToString());
@@ -359,33 +363,30 @@ void AuctionHouseBot::AddNewAuctionBuyerBotBidCallback(std::shared_ptr<Player> p
         float bidMax = 0;
 
         // check that bid has acceptable value and take bid based on vendorprice, stacksize and quality
-        if (BuyMethod)
+
+        uint32 basePrice = BuyMethod ? prototype->SellPrice : prototype->BuyPrice;
+
         {
-            if (prototype->Quality <= AHB_MAX_DEFAULT_QUALITY)
+            auto foundOverride = itemPriceOverride.find(prototype->ItemId);
+
+            if (foundOverride != itemPriceOverride.end())
             {
-                if (currentprice < prototype->SellPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
-                    bidMax = prototype->SellPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
+                auto [meanPrice, minPrice] = foundOverride->second;
+                std::normal_distribution<float> x(meanPrice, meanPrice - minPrice);
+                basePrice = x(rng);
             }
-            else
-            {
-                // quality is something it shouldn't be, let's get out of here
-                LOG_DEBUG("module.ahbot", "AHBuyer: Quality {} not Supported", prototype->Quality);
-                continue;
-            }
+        }
+
+        if (prototype->Quality <= AHB_MAX_DEFAULT_QUALITY)
+        {
+            if (currentprice < basePrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
+                bidMax = basePrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
         }
         else
         {
-            if (prototype->Quality <= AHB_MAX_DEFAULT_QUALITY)
-            {
-                if (currentprice < prototype->BuyPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality))
-                    bidMax = prototype->BuyPrice * pItem->GetCount() * config->GetBuyerPrice(prototype->Quality);
-            }
-            else
-            {
-                // quality is something it shouldn't be, let's get out of here
-                LOG_DEBUG("module.ahbot", "AHBuyer: Quality {} not Supported", prototype->Quality);
-                continue;
-            }
+            // quality is something it shouldn't be, let's get out of here
+            LOG_DEBUG("module.ahbot", "AHBuyer: Quality {} not Supported", prototype->Quality);
+            continue;
         }
 
         // check some special items, and do recalculating to their prices
@@ -570,6 +571,20 @@ void AuctionHouseBot::Initialize()
         }
     }
 
+    // Load price overrides
+    {
+        QueryResult results = WorldDatabase.Query("SELECT item, avgPrice, minPrice FROM mod_auctionhousebot_priceOverride");
+
+        if (results)
+        {
+            do
+            {
+                const Field* fields = results->Fetch();
+                itemPriceOverride.emplace(fields[0].Get<uint32>(), std::pair{ fields[1].Get<uint32>() , fields[2].Get<uint32>() });
+            } while (results->NextRow());
+        }
+    }
+
     LOG_INFO("module", "AuctionHouseBot has been loaded.");
 }
 
@@ -603,7 +618,7 @@ void AuctionHouseBot::IncrementItemCounts(AuctionEntry* ah)
     AuctionHouseEntry const* ahEntry = sAuctionHouseStore.LookupEntry(ah->GetHouseId());
     if (!ahEntry)
     {
-        //LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Neutral", ah->GetHouseId());
+        LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Neutral", ah->GetHouseId());
         config = &NeutralConfig;
     }
     else if (ahEntry->houseId == AUCTIONHOUSE_ALLIANCE)
@@ -618,7 +633,7 @@ void AuctionHouseBot::IncrementItemCounts(AuctionEntry* ah)
     }
     else
     {
-        LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Neutral", ah->GetHouseId());
+        //LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Neutral", ah->GetHouseId());
         config = &NeutralConfig;
     }
 
@@ -640,17 +655,17 @@ void AuctionHouseBot::DecrementItemCounts(AuctionEntry* ah, uint32 itemEntry)
     }
     else if (ahEntry->houseId == AUCTIONHOUSE_ALLIANCE)
     {
-        LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Alliance", ah->GetHouseId());
+        //LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Alliance", ah->GetHouseId());
         config = &AllianceConfig;
     }
     else if (ahEntry->houseId == AUCTIONHOUSE_HORDE)
     {
-        LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Horde", ah->GetHouseId());
+        //LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Horde", ah->GetHouseId());
         config = &HordeConfig;
     }
     else
     {
-        LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Neutral", ah->GetHouseId());
+        //LOG_DEBUG("module.ahbot", "AHBot: {} returned as House Faction. Neutral", ah->GetHouseId());
         config = &NeutralConfig;
     }
 
@@ -1024,51 +1039,12 @@ void AuctionHouseBot::LoadValues(AHBConfig* config)
                 ItemTemplate const* prototype = item->GetTemplate();
                 if (!prototype)
                     continue;
-
-                switch (prototype->Quality)
+                if (prototype->Quality >= ITEM_QUALITY_POOR && prototype->Quality <= ITEM_QUALITY_ARTIFACT)
                 {
-                case 0:
                     if (prototype->Class == ITEM_CLASS_TRADE_GOODS)
-                        config->IncreaseItemCounts(ITEM_QUALITY_POOR);
+                        config->IncreaseItemCounts(prototype->Quality);
                     else
-                        config->IncreaseItemCounts(AHB_ITEM_QUALITY_POOR);
-                    break;
-                case 1:
-                    if (prototype->Class == ITEM_CLASS_TRADE_GOODS)
-                        config->IncreaseItemCounts(ITEM_QUALITY_NORMAL);
-                    else
-                        config->IncreaseItemCounts(AHB_ITEM_QUALITY_NORMAL);
-                    break;
-                case 2:
-                    if (prototype->Class == ITEM_CLASS_TRADE_GOODS)
-                        config->IncreaseItemCounts(ITEM_QUALITY_UNCOMMON);
-                    else
-                        config->IncreaseItemCounts(AHB_ITEM_QUALITY_UNCOMMON);
-                    break;
-                case 3:
-                    if (prototype->Class == ITEM_CLASS_TRADE_GOODS)
-                        config->IncreaseItemCounts(ITEM_QUALITY_RARE);
-                    else
-                        config->IncreaseItemCounts(AHB_ITEM_QUALITY_RARE);
-                    break;
-                case 4:
-                    if (prototype->Class == ITEM_CLASS_TRADE_GOODS)
-                        config->IncreaseItemCounts(ITEM_QUALITY_EPIC);
-                    else
-                        config->IncreaseItemCounts(AHB_ITEM_QUALITY_EPIC);
-                    break;
-                case 5:
-                    if (prototype->Class == ITEM_CLASS_TRADE_GOODS)
-                        config->IncreaseItemCounts(ITEM_QUALITY_LEGENDARY);
-                    else
-                        config->IncreaseItemCounts(AHB_ITEM_QUALITY_LEGENDARY);
-                    break;
-                case 6:
-                    if (prototype->Class == ITEM_CLASS_TRADE_GOODS)
-                        config->IncreaseItemCounts(ITEM_QUALITY_ARTIFACT);
-                    else
-                        config->IncreaseItemCounts(AHB_ITEM_QUALITY_ARTIFACT);
-                    break;
+                        config->IncreaseItemCounts(prototype->Quality + AHB_MAX_DEFAULT_QUALITY); // Convert to AHB_ITEM enum
                 }
             }
         }

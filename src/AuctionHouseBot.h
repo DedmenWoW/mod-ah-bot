@@ -58,7 +58,8 @@ private:
     ObjectGuid::LowType AHBplayerGUID;
     uint32 ItemsPerCycle;
 
-    std::unordered_set<uint32> DisableItemStore{};
+    // itemID, avgPrice, minPrice
+    std::unordered_map<uint32, std::pair<uint32, uint32>> itemPriceOverride {};
 
     AHBConfig AllianceConfig;
     AHBConfig HordeConfig;
