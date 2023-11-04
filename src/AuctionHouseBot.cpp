@@ -85,13 +85,13 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
 
     if (auctions >= minItems)
     {
-        LOG_INFO("module.ahbot", "AHSeller: Auctions above minimum");
+        LOG_DEBUG("module.ahbot", "AHSeller: Auctions above minimum");
         return;
     }
 
     if (auctions >= maxItems)
     {
-        LOG_INFO("module.ahbot", "AHSeller: Auctions at or above maximum");
+        LOG_DEBUG("module.ahbot", "AHSeller: Auctions at or above maximum");
         return;
     }
 
@@ -100,7 +100,7 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
     else
         itemsToCreate = (maxItems - auctions);
 
-    LOG_DEBUG("module.ahbot", "AHSeller: Adding {} Auctions", itemsToCreate);
+    LOG_INFO("module.ahbot", "AHSeller: Adding {} Auctions", itemsToCreate);
     LOG_DEBUG("module.ahbot", "AHSeller: Current house id is {}", config->GetAuctionHouseID());
 
     std::array<uint32, AHB_MAX_QUALITY> maxCounts = *config->GetMaxCounts();
