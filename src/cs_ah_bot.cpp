@@ -464,6 +464,12 @@ public:
 
             sAHBot->Commands(13, ahMapID, 0, param1);
         }
+        else if (strncmp(opt, "reload", l) == 0)
+        {
+            LOG_INFO("server.loading", "Reloading AuctionHouseBot...");
+            sAHBot->InitializeConfiguration();
+            sAHBot->Initialize();
+        }
         else
         {
             handler->PSendSysMessage("Syntax is: ahbotoptions $option $ahMapID (2, 6 or 7) $parameter");

@@ -12,6 +12,7 @@
 void AuctionHouseIndex::Initialize()
 {
     // Load price overrides
+    itemPriceOverride.clear(); // in case of reload
     {
         QueryResult results = WorldDatabase.Query("SELECT item, avgPrice, minPrice FROM mod_auctionhousebot_priceOverride");
 
@@ -518,6 +519,9 @@ bool AuctionHouseIndex::InitializeItemsToSell()
 {
     const ItemFilter filter;
 
+    // in case of reload
+    for (auto& it : _itemsBin)
+        it.clear();
 
     for (auto const& [itemID, itemTemplate] : *sObjectMgr->GetItemTemplateStore())
     {
