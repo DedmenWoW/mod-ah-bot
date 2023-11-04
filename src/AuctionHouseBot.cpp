@@ -112,14 +112,19 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
     // Check how many items we are missing in every quality level (plus the separate trade goods levels)
     std::array<uint32, AHB_MAX_QUALITY> itemCountToCreate {};
 
-    for (int i = 0; i < AHB_MAX_QUALITY; ++i)
+    for (uint32 i = 0; i < AHB_MAX_QUALITY; ++i)
+    {
         if (itemsCount[i] < maxCounts[i])
             itemCountToCreate[i] = maxCounts[i] - itemsCount[i];
+
+        LOG_DEBUG("module.ahbot", "AHSeller: Q {} have {} want {} diff {}", i, itemsCount[i], maxCounts[i], itemCountToCreate[i]);
+    }
 
     // Every iteration we will select a quality to add items for
     // That means in the first cycles, the AH will not be balanced (eg full of only blue items) but with the next cycles it will balance out
 
-    std::uniform_int_distribution<uint32> randomQuality(0, itemCountToCreate.size() - 1);
+    // Weighted distribution, the quality with most missing items has highest probability
+    std::discrete_distribution<uint32> randomQuality(itemCountToCreate.begin(), itemCountToCreate.end());
     std::uniform_int_distribution<uint32> randomTime(0, 3); // 12h, 24h, 48h
 
     // List of itemID's we chose to create this batch
