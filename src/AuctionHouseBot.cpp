@@ -162,8 +162,19 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
                 if (foundOverride != itemPriceOverride.end())
                 {
                     auto [meanPrice, minPrice] = foundOverride->second;
-                    std::normal_distribution<float> x(meanPrice, std::max(1u, meanPrice - minPrice));
-                    vendorPrice = x(rng);
+
+                    if (minPrice > meanPrice)
+                    {
+                        LOG_WARN("module.ahbot", "Price override has higher min price than mean for item {}", prototype->ItemId);
+                        minPrice = meanPrice * 0.8;
+                    }
+
+                    float meanPriceF = meanPrice;
+                    float minPriceF = minPrice;
+                    float stdDev = std::max(1.f, meanPriceF - minPriceF) * 0.2f; // results will be about mean-3*stddev and mean+3*stddev
+                    std::normal_distribution<float> x(meanPriceF, stdDev);
+                    float randVal = x(rng);
+                    vendorPrice = std::max(randVal, minPriceF); // Never fall below minPrice, we cannot deal with negative numbers, which sometimes can happen
                 }
             }
 
