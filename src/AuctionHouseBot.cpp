@@ -306,7 +306,7 @@ void AuctionHouseBot::AddNewAuctionBuyerBotBid(std::shared_ptr<Player> player, s
 
     auto sharedConfig = std::make_shared<AHBConfig>(*config);
 
-    _queryProcessor.AddCallback(CharacterDatabase.AsyncQuery(Acore::StringFormatFmt("SELECT id FROM auctionhouse WHERE itemowner<>{} AND buyguid<>{}", AHBplayerGUID, AHBplayerGUID)).
+    _queryProcessor.AddCallback(CharacterDatabase.AsyncQuery(Acore::StringFormatFmt("SELECT id FROM auctionhouse WHERE itemowner<>{} AND buyguid<>{} AND buyguid<>0", AHBplayerGUID, AHBplayerGUID)).
         WithCallback([this, player, session, sharedConfig](QueryResult result)
         {
             AddNewAuctionBuyerBotBidCallback(player, session, sharedConfig, std::move(result));
