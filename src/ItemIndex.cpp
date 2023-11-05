@@ -1,6 +1,7 @@
 #include "ItemIndex.h"
 
 #include <numeric>
+#include <random>
 
 #include "Config.h"
 #include "WorldSession.h"
@@ -579,5 +580,29 @@ bool AuctionHouseIndex::InitializeItemsToSell()
     loaded 1 yellow items
     */
 
+}
+
+std::optional<uint32> AuctionHouseIndex::GetOverridenPrice(uint32 itemId, std::mt19937& rng)
+{
+    const auto foundOverride = itemPriceOverride.find(itemId);
+
+    if (foundOverride != itemPriceOverride.end())
+    {
+        auto [meanPrice, minPrice] = foundOverride->second;
+
+        if (minPrice > meanPrice)
+        {
+            LOG_WARN("module.ahbot", "Price override has higher min price than mean for item {}", itemId);
+            minPrice = meanPrice * 0.8;
+        }
+
+        float meanPriceF = meanPrice;
+        float minPriceF = minPrice;
+        float stdDev = std::max(1.f, meanPriceF - minPriceF) * 0.2f; // results will be about mean-3*stddev and mean+3*stddev
+        std::normal_distribution<float> x(meanPriceF, stdDev);
+        float randVal = x(rng);
+        return std::max(randVal, minPriceF); // Never fall below minPrice, we cannot deal with negative numbers, which sometimes can happen
+    }
+    return std::nullopt;
 }
 

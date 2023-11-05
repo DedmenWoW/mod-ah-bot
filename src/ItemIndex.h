@@ -20,6 +20,8 @@
 #ifndef ITEM_INDEX_H
 #define ITEM_INDEX_H
 
+#include <random>
+
 #include "ObjectGuid.h"
 #include "ItemTemplate.h"
 #include "AuctionHouseBotConfig.h"
@@ -47,10 +49,12 @@ public:
         return _itemsBin[quality];
     }
 
-    const  std::unordered_map<uint32, std::pair<uint32, uint32>>& GetPriceOverrides() const
+    const std::unordered_map<uint32, std::pair<uint32, uint32>>& GetPriceOverrides() const
     {
         return itemPriceOverride;
     }
+
+    std::optional<uint32> GetOverridenPrice(uint32 itemId, std::mt19937& rng);
 
 private:
 

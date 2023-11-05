@@ -155,28 +155,8 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
 
     auto calculatePrices = [config, this](ItemTemplate const* prototype, uint64 vendorPrice) -> std::pair<uint32, uint32>
         {
-            {
-                auto& itemPriceOverride = sAHIndex->GetPriceOverrides();
-                const auto foundOverride = itemPriceOverride.find(prototype->ItemId);
-
-                if (foundOverride != itemPriceOverride.end())
-                {
-                    auto [meanPrice, minPrice] = foundOverride->second;
-
-                    if (minPrice > meanPrice)
-                    {
-                        LOG_WARN("module.ahbot", "Price override has higher min price than mean for item {}", prototype->ItemId);
-                        minPrice = meanPrice * 0.8;
-                    }
-
-                    float meanPriceF = meanPrice;
-                    float minPriceF = minPrice;
-                    float stdDev = std::max(1.f, meanPriceF - minPriceF) * 0.2f; // results will be about mean-3*stddev and mean+3*stddev
-                    std::normal_distribution<float> x(meanPriceF, stdDev);
-                    float randVal = x(rng);
-                    vendorPrice = std::max(randVal, minPriceF); // Never fall below minPrice, we cannot deal with negative numbers, which sometimes can happen
-                }
-            }
+            if (const auto priceOverride = sAHIndex->GetOverridenPrice(prototype->ItemId, rng))
+                vendorPrice = *priceOverride;
 
             std::uniform_int_distribution<uint32> buyPriceMultiplier(config->GetMinPrice(prototype->Quality), config->GetMaxPrice(prototype->Quality));
             std::uniform_int_distribution<uint32> bidPriceMultiplier(config->GetMinBidPrice(prototype->Quality), config->GetMaxBidPrice(prototype->Quality));
@@ -388,17 +368,8 @@ void AuctionHouseBot::AddNewAuctionBuyerBotBidCallback(std::shared_ptr<Player> p
 
         uint32 basePrice = BuyMethod ? prototype->SellPrice : prototype->BuyPrice;
 
-        {
-            auto& itemPriceOverride = sAHIndex->GetPriceOverrides();
-            auto foundOverride = itemPriceOverride.find(prototype->ItemId);
-
-            if (foundOverride != itemPriceOverride.end())
-            {
-                auto [meanPrice, minPrice] = foundOverride->second;
-                std::normal_distribution<float> x(meanPrice, meanPrice - minPrice);
-                basePrice = x(rng);
-            }
-        }
+        if (const auto priceOverride = sAHIndex->GetOverridenPrice(prototype->ItemId, rng))
+            basePrice = *priceOverride;
 
         if (prototype->Quality <= AHB_MAX_DEFAULT_QUALITY)
         {
