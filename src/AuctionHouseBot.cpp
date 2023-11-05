@@ -169,7 +169,7 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
             return { buyoutPrice, bidPrice };
         };
 
-    const auto itemIndex = AuctionHouseIndex::instance();
+    auto const itemIndex = sAHIndex;
 
     while (itemsToCreate)
     {
