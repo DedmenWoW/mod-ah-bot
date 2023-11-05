@@ -401,7 +401,9 @@ void AuctionHouseBot::AddNewAuctionBuyerBotBidCallback(std::shared_ptr<Player> p
         }
 
         // Calculate our bid
-        float bidvalue = currentprice + ((bidMax - currentprice) * bidrate);
+        float overBidAmount = ((bidMax - currentprice) * bidrate); // How much money we bid, over top of the current price
+        overBidAmount = std::min(overBidAmount, static_cast<float>(currentprice) * 1.2f); // Don't overbid more than 20%, no normal player would do that
+        float bidvalue = static_cast<float>(currentprice) + overBidAmount;
 
         // Convert to uint32
         uint32 bidprice = static_cast<uint32>(bidvalue);
