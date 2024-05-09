@@ -729,7 +729,7 @@ void AuctionHouseBot::Commands(AHBotCommand command, uint32 ahMapID, uint32 col,
             if (auction->owner.GetCounter() == AHBplayerGUID)
             {
                 ItemTemplate const* prototype = sObjectMgr->GetItemTemplate(auction->item_template);
-                if (prototype || prototype->Class != itemClass)
+                if (!prototype || prototype->Class != itemClass)
                     continue;
 
                 auction->expire_time = GameTime::GetGameTime().count();
