@@ -718,6 +718,30 @@ void AuctionHouseBot::Commands(AHBotCommand command, uint32 ahMapID, uint32 col,
             }
         }
         break;
+    case AHBotCommand::ahexpireclass:
+    {
+        uint32 itemClass = (uint32)strtoul(args, NULL, 0);
+        AuctionHouseObject* auctionHouse = sAuctionMgr->GetAuctionsMap(config->GetAuctionHouseFactionID());
+        uint32 expiredItemsCount = 0;
+
+        for (auto const& [__, auction] : auctionHouse->GetAuctions())
+        {
+            if (auction->owner.GetCounter() == AHBplayerGUID)
+            {
+                ItemTemplate const* prototype = sObjectMgr->GetItemTemplate(auction->item_template);
+                if (prototype || prototype->Class != itemClass)
+                    continue;
+
+                auction->expire_time = GameTime::GetGameTime().count();
+                uint32 id = auction->Id;
+                uint32 expire_time = auction->expire_time;
+                CharacterDatabase.Execute("UPDATE auctionhouse SET time = '{}' WHERE id = '{}'", expire_time, id);
+                ++expiredItemsCount;
+            }
+        }
+        LOG_INFO("module.ahbot", "AHSeller: Manually expired {} Auctions", expiredItemsCount);
+    }
+    break;
     case AHBotCommand::minitems:
         {
             char * param1 = strtok(args, " ");

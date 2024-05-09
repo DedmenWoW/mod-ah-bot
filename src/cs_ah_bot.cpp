@@ -94,6 +94,7 @@ public:
         {
             handler->PSendSysMessage("AHBot commands:");
             handler->PSendSysMessage("ahexpire");
+            handler->PSendSysMessage("ahexpireclass");
             handler->PSendSysMessage("minitems");
             handler->PSendSysMessage("maxitems");
             //handler->PSendSysMessage("");
@@ -119,6 +120,17 @@ public:
             }
 
             sAHBot->Commands(AHBotCommand::ahexpire, ahMapID, 0, NULL);
+        }
+        else if (strncmp(opt, "ahexpireclass", l) == 0)
+        {
+            char* param1 = strtok(NULL, " ");
+            if (!ahMapIdStr)
+            {
+                handler->PSendSysMessage("Syntax is: ahbotoptions ahexpireclass $ahMapID (2, 6 or 7) $class");
+                return false;
+            }
+
+            sAHBot->Commands(AHBotCommand::ahexpireclass, ahMapID, 0, param1);
         }
         else if (strncmp(opt, "minitems", l) == 0)
         {

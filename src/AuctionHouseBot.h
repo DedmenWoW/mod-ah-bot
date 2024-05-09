@@ -33,6 +33,7 @@ class WorldSession;
 enum class AHBotCommand : uint32
 {
     ahexpire,
+    ahexpireclass,
     minitems,
     maxitems,
     percentages,
