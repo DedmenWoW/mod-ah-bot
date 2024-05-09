@@ -656,7 +656,7 @@ void AuctionHouseBot::DecrementItemCounts(AuctionEntry* ah, uint32 itemEntry)
     config->DecreaseItemCounts(prototype->Class, prototype->Quality);
 }
 
-void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char* args)
+void AuctionHouseBot::Commands(AHBotCommand command, uint32 ahMapID, uint32 col, char* args)
 {
     AHBConfig* config = nullptr;
     switch (ahMapID)
@@ -702,7 +702,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
 
     switch (command)
     {
-    case 0:     //ahexpire
+    case AHBotCommand::ahexpire:
         {
             AuctionHouseObject* auctionHouse = sAuctionMgr->GetAuctionsMap(config->GetAuctionHouseFactionID());
 
@@ -718,7 +718,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             }
         }
         break;
-    case 1:     //min items
+    case AHBotCommand::minitems:
         {
             char * param1 = strtok(args, " ");
             uint32 minItems = (uint32) strtoul(param1, NULL, 0);
@@ -726,7 +726,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetMinItems(minItems);
         }
         break;
-    case 2:     //max items
+    case AHBotCommand::maxitems:
         {
             char * param1 = strtok(args, " ");
             uint32 maxItems = (uint32) strtoul(param1, NULL, 0);
@@ -735,11 +735,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->CalculateMaxCounts();
         }
         break;
-    case 3:     //min time Deprecated (Place holder for future commands)
-        break;
-    case 4:     //max time Deprecated (Place holder for future commands)
-        break;
-    case 5:     //percentages
+    case AHBotCommand::percentages:
         {
             char * param1 = strtok(args, " ");
             char * param2 = strtok(NULL, " ");
@@ -794,7 +790,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetPercentages(percentages);
         }
         break;
-    case 6:     //min prices
+    case AHBotCommand::minprice:
         {
             char * param1 = strtok(args, " ");
             uint32 minPrice = (uint32) strtoul(param1, NULL, 0);
@@ -802,7 +798,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetMinPrice(col, minPrice);
         }
         break;
-    case 7:     //max prices
+    case AHBotCommand::maxprice:
         {
             char * param1 = strtok(args, " ");
             uint32 maxPrice = (uint32) strtoul(param1, NULL, 0);
@@ -810,7 +806,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetMaxPrice(col, maxPrice);
         }
         break;
-    case 8:     //min bid price
+    case AHBotCommand::minbidprice:
         {
             char * param1 = strtok(args, " ");
             uint32 minBidPrice = (uint32) strtoul(param1, NULL, 0);
@@ -818,7 +814,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetMinBidPrice(col, minBidPrice);
         }
         break;
-    case 9:     //max bid price
+    case AHBotCommand::maxbidprice:
         {
             char * param1 = strtok(args, " ");
             uint32 maxBidPrice = (uint32) strtoul(param1, NULL, 0);
@@ -826,7 +822,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetMaxBidPrice(col, maxBidPrice);
         }
         break;
-    case 10:        //max stacks
+    case AHBotCommand::maxstack:
         {
             char * param1 = strtok(args, " ");
             uint32 maxStack = (uint32) strtoul(param1, NULL, 0);
@@ -834,7 +830,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetMaxStack(col, maxStack);
         }
         break;
-    case 11:        //buyer bid prices
+    case AHBotCommand::buyerprice:
         {
             char * param1 = strtok(args, " ");
             uint32 buyerPrice = (uint32) strtoul(param1, NULL, 0);
@@ -842,7 +838,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetBuyerPrice(col, buyerPrice);
         }
         break;
-    case 12:        //buyer bidding interval
+    case AHBotCommand::bidinterval:
         {
             char * param1 = strtok(args, " ");
             uint32 bidInterval = (uint32) strtoul(param1, NULL, 0);
@@ -850,7 +846,7 @@ void AuctionHouseBot::Commands(uint32 command, uint32 ahMapID, uint32 col, char*
             config->SetBiddingInterval(Minutes(bidInterval));
         }
         break;
-    case 13:        //buyer bids per interval
+    case AHBotCommand::bidsperinterval:
         {
             char * param1 = strtok(args, " ");
             uint32 bidsPerInterval = (uint32) strtoul(param1, NULL, 0);

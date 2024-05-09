@@ -29,6 +29,23 @@ struct AuctionEntry;
 class Player;
 class WorldSession;
 
+
+enum class AHBotCommand : uint32
+{
+    ahexpire,
+    minitems,
+    maxitems,
+    percentages,
+    minprice,
+    maxprice,
+    minbidprice,
+    maxbidprice,
+    maxstack,
+    buyerprice,
+    bidinterval,
+    bidsperinterval
+};
+
 class AuctionHouseBot
 {
 public:
@@ -43,7 +60,7 @@ public:
     void LoadValues(AHBConfig*);
     void DecrementItemCounts(AuctionEntry* ah, uint32 itemEntry);
     void IncrementItemCounts(AuctionEntry* ah);
-    void Commands(uint32, uint32, uint32, char*);
+    void Commands(AHBotCommand, uint32, uint32, char*);
     ObjectGuid::LowType GetAHBplayerGUID() { return AHBplayerGUID; };
 
 private:
