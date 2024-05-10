@@ -120,6 +120,12 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
         LOG_DEBUG("module.ahbot", "AHSeller: Q {} have {} want {} diff {}", i, itemsCount[i], maxCounts[i], itemCountToCreate[i]);
     }
 
+    // We can only create as many items as are available
+    itemsToCreate = std::min(itemsToCreate, std::accumulate(itemCountToCreate.begin(), itemCountToCreate.end(), 0u));
+
+    if (itemsToCreate == 0)
+        return; // huh?
+
     // Every iteration we will select a quality to add items for
     // That means in the first cycles, the AH will not be balanced (eg full of only blue items) but with the next cycles it will balance out
 
@@ -132,9 +138,6 @@ void AuctionHouseBot::AddNewAuctions(Player* AHBplayer, AHBConfig* config)
     itemBatch.reserve(512);
     std::vector<std::pair<Item*, AuctionEntry*>> auctionBatch;
     itemBatch.reserve(512);
-
-    // We can only create as many items as are available
-    itemsToCreate = std::min(itemsToCreate, std::accumulate(itemCountToCreate.begin(), itemCountToCreate.end(), 0u));
 
     auto calculateStackSize = [config](ItemTemplate const* prototype)
         {
